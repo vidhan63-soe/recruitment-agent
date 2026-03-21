@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────────────
+   Unified Production Theme — RecruitAI
+   Dark slate palette matching the interview agent UI.
+   ───────────────────────────────────────────────────────── */
+
+:root {
+  --bg:            #0d0f18;
+  --card:          #141720;
+  --surface:       #1c1f2e;
+  --border:        #262b3a;
+  --text:          #e1e4f0;
+  --muted:         #7a809a;
+  --accent:        #6366f1;
+  --accent-light:  rgba(99, 102, 241, 0.12);
+  --accent-hover:  #5558e6;
+  --success:       #22c55e;
+  --success-light: rgba(34, 197, 94, 0.10);
+  --danger:        #ef4444;
+  --danger-light:  rgba(239, 68, 68, 0.10);
+  --warning:       #f59e0b;
+  --warning-light: rgba(245, 158, 11, 0.10);
+}
+
+/* ── Base ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Form elements ── */
+input, textarea, select {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+  caret-color: var(--accent);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--muted) !important;
+  opacity: 1;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ── Range input ── */
+input[type="range"] {
+  accent-color: var(--accent) !important;
+}
+
+/* ── Checkbox ── */
+input[type="checkbox"] {
+  accent-color: var(--accent) !important;
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+/* ── Selection ── */
+::selection {
+  background: rgba(99, 102, 241, 0.25);
+  color: var(--text);
+}
+
+/* ── Animations ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-in {
+  animation: fadeUp 0.35s ease-out forwards;
+}
+
+/* ── Focus ring ── */
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

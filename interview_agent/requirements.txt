@@ -1,0 +1,36 @@
+# ═══════════════════════════════════════════════════
+# AI INTERVIEWER — Dependencies
+# ═══════════════════════════════════════════════════
+# All free / open-source / free-tier APIs
+
+# ── Core Server ──
+flask>=3.0
+flask-cors>=4.0
+aiohttp>=3.9
+
+# ── LiveKit (Real-time Audio) ──
+livekit>=0.13
+livekit-api>=0.7
+
+# ── STT: Whisper (Local, Free) ──
+faster-whisper>=1.0
+# Uses HuggingFace models — downloads automatically
+
+# ── LLM: Groq (Free Tier) + Ollama (Local Fallback) ──
+groq>=0.9                    # Groq API client (free, no credit card)
+ollama>=0.3                  # Local LLM fallback
+
+# ── TTS ──
+TTS>=0.22                    # Coqui TTS (local, free)
+sarvamai>=0.1.11             # SarvamAI SDK (₹1000 free credits)
+
+# ── RAG: ChromaDB (Local, Free) ──
+chromadb>=0.5
+
+# ── Audio Processing ──
+numpy>=1.24
+torch>=2.0
+torchaudio>=2.0
+
+# ── Utilities ──
+python-dotenv>=1.0

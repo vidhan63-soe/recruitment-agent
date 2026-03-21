@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+
+# Environment
+.env
+
+# Data & Models
+vectorstore/
+data/resumes/*
+data/jd/*
+!data/resumes/.gitkeep
+!data/jd/.gitkeep
+logs/
+*.db
+*.sqlite3
+uploads/
+vectorstore_test/
+vectorstore_test_e2e/
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+
+# ML model weights (too large)
+*.safetensors
+*.bin
+*.pt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
