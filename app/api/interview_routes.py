@@ -172,8 +172,7 @@ async def candidate_checkin(request: Request):
 # AI Response Helper (browser-native voice interview)
 # ══════════════════════════════════════════════════
 
-# Male speakers available in Sarvam TTS bulbul:v1
-# abhilash = natural Indian-English male voice
+# Male speakers available in Sarvam TTS bulbul:v2: abhilash (male), anushka (female)
 _SARVAM_MALE_SPEAKER = "abhilash"
 
 # Simple, varied, encouraging transition lines — no AI call, no answer analysis
@@ -473,7 +472,7 @@ SNAPSHOT_DIR = Path(__file__).parent.parent.parent / "uploads" / "snapshots"
 async def text_to_speech(request: Request):
     """
     Text-to-speech with two-tier fallback:
-      1. Sarvam TTS (bulbul:v1) — primary, confirmed working
+      1. Sarvam TTS (bulbul:v2) — primary, confirmed working
       2. Edge TTS (en-US-GuyNeural) — secondary if Sarvam unavailable
     Returns { audio_base64, format, voice }.
     """
@@ -497,7 +496,7 @@ async def text_to_speech(request: Request):
                         "inputs": [text],
                         "target_language_code": "en-IN",
                         "speaker": _SARVAM_MALE_SPEAKER,
-                        "model": "bulbul:v1",
+                        "model": "bulbul:v2",
                         "pitch": 0, "pace": 1.0, "loudness": 1.5,
                         "speech_sample_rate": 22050,
                         "enable_preprocessing": True,
