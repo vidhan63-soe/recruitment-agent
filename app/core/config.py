@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     TOP_K_CANDIDATES: int = 10
     MIN_MATCH_SCORE: float = 0.35
 
+    # --- Edge TTS ---
+    # Voice options: en-US-GuyNeural, en-US-JennyNeural, en-GB-RyanNeural, en-US-AriaNeural
+    EDGE_TTS_VOICE: str = "en-US-GuyNeural"
+
     # --- Interview Agent ---
     INTERVIEW_BASE_URL: str = ""  # e.g. https://your-frontend.com/candidate/interview
 

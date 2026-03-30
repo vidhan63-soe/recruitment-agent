@@ -952,15 +952,15 @@ function reportCheating(type, details) {
 }
 
 // ════════════════════════════════════════════════════
-// WEB SPEECH API — TTS + STT
+// TTS — Edge TTS (backend) with Web Speech API fallback
 // ════════════════════════════════════════════════════
 let _ttsVoice = null;
+let _currentAudio = null;
 
-// Pre-load voices (Chrome lazy-loads them)
+// Pre-load voices for Web Speech fallback
 function _loadVoices() {
   const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
-  _ttsVoice = voices.find(v => v.lang.startsWith('en') && v.name.toLowerCase().includes('female'))
-           || voices.find(v => v.lang === 'en-US' || v.lang === 'en-GB')
+  _ttsVoice = voices.find(v => v.lang === 'en-US' || v.lang === 'en-GB')
            || voices.find(v => v.lang.startsWith('en'))
            || (voices.length ? voices[0] : null);
 }
@@ -969,21 +969,55 @@ if (window.speechSynthesis) {
   _loadVoices();
 }
 
-function speak(text) {
+async function speak(text) {
+  if (!text) return;
+
+  // Cancel any in-progress audio
+  if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+
+  // ── Primary: Edge TTS via backend ──
+  try {
+    const controller = new AbortController();
+    const ttsTimeout = setTimeout(() => controller.abort(), 16000);
+    const res = await fetch('/api/interview/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text.slice(0, 800) }),
+      signal: controller.signal,
+    });
+    clearTimeout(ttsTimeout);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.audio_base64) {
+        const mime = data.format === 'mp3' ? 'audio/mpeg' : 'audio/wav';
+        await new Promise((resolve) => {
+          const audio = new Audio(`data:${mime};base64,${data.audio_base64}`);
+          _currentAudio = audio;
+          const safety = setTimeout(() => { _currentAudio = null; resolve(); }, text.length * 110 + 6000);
+          audio.onended = () => { clearTimeout(safety); _currentAudio = null; resolve(); };
+          audio.onerror  = () => { clearTimeout(safety); _currentAudio = null; resolve(); };
+          audio.play().catch(() => { clearTimeout(safety); _currentAudio = null; resolve(); });
+        });
+        return; // ← Edge TTS succeeded
+      }
+    }
+  } catch (_) {
+    // Network error / timeout — fall through to Web Speech API
+  }
+
+  // ── Fallback: Web Speech API ──
+  if (!window.speechSynthesis) return;
   return new Promise((resolve) => {
-    if (!window.speechSynthesis || !text) { resolve(); return; }
-    window.speechSynthesis.cancel();
     const utt = new SpeechSynthesisUtterance(text);
     if (_ttsVoice) utt.voice = _ttsVoice;
     utt.lang = 'en-US';
     utt.rate = 0.92;
-    utt.pitch = 1.05;
+    utt.pitch = 1.0;
     utt.volume = 1.0;
-    utt.onend = resolve;
-    utt.onerror = resolve;
-    // Chrome bug: long utterances sometimes never fire onend — add safety timeout
     const safety = setTimeout(resolve, text.length * 80 + 3000);
-    utt.onend = () => { clearTimeout(safety); resolve(); };
+    utt.onend  = () => { clearTimeout(safety); resolve(); };
+    utt.onerror = () => { clearTimeout(safety); resolve(); };
     window.speechSynthesis.speak(utt);
   });
 }

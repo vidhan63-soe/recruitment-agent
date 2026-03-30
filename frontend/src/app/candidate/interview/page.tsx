@@ -286,29 +286,30 @@ function InterviewApp() {
       window.speechSynthesis.cancel();
     }
 
-    // ── Try Sarvam TTS (natural male Indian-English voice) ──
+    // ── Try Edge TTS (Microsoft Neural voice, via backend) ──
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 16000);
       const res = await fetch(`${BACKEND}/api/interview/tts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: text.slice(0, 600), speaker: "abhilash" }),
+        body: JSON.stringify({ text: text.slice(0, 800) }),
         signal: controller.signal,
       });
       clearTimeout(timeout);
       if (res.ok) {
         const data = await res.json();
         if (data.audio_base64) {
+          const mime = data.format === "mp3" ? "audio/mpeg" : "audio/wav";
           await new Promise<void>((resolve) => {
-            const audio = new Audio(`data:audio/wav;base64,${data.audio_base64}`);
+            const audio = new Audio(`data:${mime};base64,${data.audio_base64}`);
             currentAudioRef.current = audio;
             const safety = setTimeout(() => { currentAudioRef.current = null; resolve(); }, text.length * 110 + 6000);
             audio.onended = () => { clearTimeout(safety); currentAudioRef.current = null; resolve(); };
             audio.onerror = () => { clearTimeout(safety); currentAudioRef.current = null; resolve(); };
             audio.play().catch(() => { clearTimeout(safety); currentAudioRef.current = null; resolve(); });
           });
-          return; // ← Sarvam succeeded
+          return; // ← Edge TTS succeeded
         }
       }
     } catch {

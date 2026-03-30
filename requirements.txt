@@ -23,6 +23,9 @@ chromadb==0.5.23
 # --- Text Processing ---
 tiktoken==0.8.0
 
+# --- TTS (Edge TTS — Microsoft neural voices, no API key needed) ---
+edge-tts==7.0.2
+
 # --- Utilities ---
 pydantic==2.10.3
 pydantic-settings==2.7.0

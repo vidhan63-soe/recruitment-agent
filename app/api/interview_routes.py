@@ -467,51 +467,67 @@ VIDEO_DIR    = Path(__file__).parent.parent.parent / "uploads" / "video"
 SNAPSHOT_DIR = Path(__file__).parent.parent.parent / "uploads" / "snapshots"
 
 
-# ── Sarvam TTS proxy ───────────────────────────────────────────────────────────
+# ── Edge TTS ────────────────────────────────────────────────────────────────────
 
 @router.post("/api/interview/tts")
 async def text_to_speech(request: Request):
     """
-    Proxy Sarvam TTS so the API key never leaves the server.
-    Returns { audio_base64, format } — browser plays via Audio().
+    Generate speech using Microsoft Edge TTS (free, no API key, neural voices).
+    Returns { audio_base64, format: "mp3", voice }.
+    Falls back to Sarvam TTS if Edge TTS fails and SARVAM_API_KEY is configured.
     """
+    import base64
     body = await request.json()
-    text = (body.get("text") or "").strip()[:600]   # Sarvam max ~500 chars
-    speaker = body.get("speaker", _SARVAM_MALE_SPEAKER)  # abhilash = natural male Indian-English
+    text = (body.get("text") or "").strip()[:800]
+    settings = get_settings()
+    voice = body.get("voice") or settings.EDGE_TTS_VOICE
 
     if not text:
         return JSONResponse({"error": "No text provided"}, status_code=400)
 
-    sarvam_key = get_settings().SARVAM_API_KEY
-    if not sarvam_key:
-        return JSONResponse({"error": "SARVAM_API_KEY not set"}, status_code=503)
-
+    # ── Primary: Edge TTS (Microsoft Neural, free) ──
     try:
-        async with aiohttp.ClientSession() as sess:
-            async with sess.post(
-                "https://api.sarvam.ai/text-to-speech",
-                headers={"api-subscription-key": sarvam_key, "Content-Type": "application/json"},
-                json={
-                    "inputs": [text],
-                    "target_language_code": "en-IN",
-                    "speaker": speaker,
-                    "model": "bulbul:v1",
-                    "pitch": 0,
-                    "pace": 1.0,
-                    "loudness": 1.5,
-                    "speech_sample_rate": 22050,
-                    "enable_preprocessing": True,
-                },
-                timeout=aiohttp.ClientTimeout(total=20),
-            ) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    audios = data.get("audios", [])
-                    if audios:
-                        return {"audio_base64": audios[0], "format": "wav", "speaker": speaker}
-                logger.debug(f"Sarvam TTS {resp.status}: {(await resp.text())[:120]}")
+        import edge_tts
+        communicate = edge_tts.Communicate(text, voice=voice)
+        audio_data = b""
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio_data += chunk["data"]
+        if audio_data:
+            return {
+                "audio_base64": base64.b64encode(audio_data).decode(),
+                "format": "mp3",
+                "voice": voice,
+            }
     except Exception as e:
-        logger.debug(f"Sarvam TTS failed: {e}")
+        logger.warning(f"Edge TTS failed ({voice}): {e}")
+
+    # ── Fallback: Sarvam TTS ──
+    sarvam_key = settings.SARVAM_API_KEY
+    if sarvam_key:
+        try:
+            async with aiohttp.ClientSession() as sess:
+                async with sess.post(
+                    "https://api.sarvam.ai/text-to-speech",
+                    headers={"api-subscription-key": sarvam_key, "Content-Type": "application/json"},
+                    json={
+                        "inputs": [text[:500]],
+                        "target_language_code": "en-IN",
+                        "speaker": body.get("speaker", _SARVAM_MALE_SPEAKER),
+                        "model": "bulbul:v1",
+                        "pitch": 0, "pace": 1.0, "loudness": 1.5,
+                        "speech_sample_rate": 22050,
+                        "enable_preprocessing": True,
+                    },
+                    timeout=aiohttp.ClientTimeout(total=20),
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        audios = data.get("audios", [])
+                        if audios:
+                            return {"audio_base64": audios[0], "format": "wav", "voice": "sarvam"}
+        except Exception as e:
+            logger.debug(f"Sarvam TTS fallback failed: {e}")
 
     return JSONResponse({"error": "TTS unavailable"}, status_code=503)
 
