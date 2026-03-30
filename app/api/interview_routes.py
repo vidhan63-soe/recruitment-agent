@@ -467,42 +467,25 @@ VIDEO_DIR    = Path(__file__).parent.parent.parent / "uploads" / "video"
 SNAPSHOT_DIR = Path(__file__).parent.parent.parent / "uploads" / "snapshots"
 
 
-# ── Edge TTS ────────────────────────────────────────────────────────────────────
+# ── TTS endpoint — Sarvam primary, Edge TTS secondary ───────────────────────────
 
 @router.post("/api/interview/tts")
 async def text_to_speech(request: Request):
     """
-    Generate speech using Microsoft Edge TTS (free, no API key, neural voices).
-    Returns { audio_base64, format: "mp3", voice }.
-    Falls back to Sarvam TTS if Edge TTS fails and SARVAM_API_KEY is configured.
+    Text-to-speech with two-tier fallback:
+      1. Sarvam TTS (bulbul:v1) — primary, confirmed working
+      2. Edge TTS (en-US-GuyNeural) — secondary if Sarvam unavailable
+    Returns { audio_base64, format, voice }.
     """
     import base64
     body = await request.json()
-    text = (body.get("text") or "").strip()[:800]
+    text = (body.get("text") or "").strip()[:600]
     settings = get_settings()
-    voice = body.get("voice") or settings.EDGE_TTS_VOICE
 
     if not text:
         return JSONResponse({"error": "No text provided"}, status_code=400)
 
-    # ── Primary: Edge TTS (Microsoft Neural, free) ──
-    try:
-        import edge_tts
-        communicate = edge_tts.Communicate(text, voice=voice)
-        audio_data = b""
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                audio_data += chunk["data"]
-        if audio_data:
-            return {
-                "audio_base64": base64.b64encode(audio_data).decode(),
-                "format": "mp3",
-                "voice": voice,
-            }
-    except Exception as e:
-        logger.warning(f"Edge TTS failed ({voice}): {e}")
-
-    # ── Fallback: Sarvam TTS ──
+    # ── Primary: Sarvam TTS ──
     sarvam_key = settings.SARVAM_API_KEY
     if sarvam_key:
         try:
@@ -511,23 +494,44 @@ async def text_to_speech(request: Request):
                     "https://api.sarvam.ai/text-to-speech",
                     headers={"api-subscription-key": sarvam_key, "Content-Type": "application/json"},
                     json={
-                        "inputs": [text[:500]],
+                        "inputs": [text],
                         "target_language_code": "en-IN",
-                        "speaker": body.get("speaker", _SARVAM_MALE_SPEAKER),
+                        "speaker": _SARVAM_MALE_SPEAKER,
                         "model": "bulbul:v1",
                         "pitch": 0, "pace": 1.0, "loudness": 1.5,
                         "speech_sample_rate": 22050,
                         "enable_preprocessing": True,
                     },
-                    timeout=aiohttp.ClientTimeout(total=20),
+                    timeout=aiohttp.ClientTimeout(total=12),
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         audios = data.get("audios", [])
                         if audios:
                             return {"audio_base64": audios[0], "format": "wav", "voice": "sarvam"}
+                    else:
+                        body_text = await resp.text()
+                        logger.warning(f"Sarvam TTS HTTP {resp.status}: {body_text[:120]}")
         except Exception as e:
-            logger.debug(f"Sarvam TTS fallback failed: {e}")
+            logger.warning(f"Sarvam TTS failed: {e}")
+
+    # ── Secondary: Edge TTS (Microsoft Neural) ──
+    edge_voice = settings.EDGE_TTS_VOICE
+    try:
+        import edge_tts
+        communicate = edge_tts.Communicate(text, voice=edge_voice)
+        audio_data = b""
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio_data += chunk["data"]
+        if audio_data:
+            return {
+                "audio_base64": base64.b64encode(audio_data).decode(),
+                "format": "mp3",
+                "voice": edge_voice,
+            }
+    except Exception as e:
+        logger.warning(f"Edge TTS failed ({edge_voice}): {e}")
 
     return JSONResponse({"error": "TTS unavailable"}, status_code=503)
 

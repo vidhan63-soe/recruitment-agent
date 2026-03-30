@@ -976,14 +976,14 @@ async function speak(text) {
   if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
   if (window.speechSynthesis) window.speechSynthesis.cancel();
 
-  // ── Primary: Edge TTS via backend ──
+  // ── Primary: Backend TTS (Sarvam neural voice) ──
   try {
     const controller = new AbortController();
-    const ttsTimeout = setTimeout(() => controller.abort(), 16000);
+    const ttsTimeout = setTimeout(() => controller.abort(), 7000);
     const res = await fetch('/api/interview/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: text.slice(0, 800) }),
+      body: JSON.stringify({ text: text.slice(0, 600) }),
       signal: controller.signal,
     });
     clearTimeout(ttsTimeout);
@@ -999,7 +999,7 @@ async function speak(text) {
           audio.onerror  = () => { clearTimeout(safety); _currentAudio = null; resolve(); };
           audio.play().catch(() => { clearTimeout(safety); _currentAudio = null; resolve(); });
         });
-        return; // ← Edge TTS succeeded
+        return; // ← Backend TTS succeeded
       }
     }
   } catch (_) {

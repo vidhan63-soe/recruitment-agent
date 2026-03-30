@@ -286,14 +286,14 @@ function InterviewApp() {
       window.speechSynthesis.cancel();
     }
 
-    // ── Try Edge TTS (Microsoft Neural voice, via backend) ──
+    // ── Try backend TTS (Sarvam neural voice) ──
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 16000);
+      const timeout = setTimeout(() => controller.abort(), 7000);
       const res = await fetch(`${BACKEND}/api/interview/tts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: text.slice(0, 800) }),
+        body: JSON.stringify({ text: text.slice(0, 600) }),
         signal: controller.signal,
       });
       clearTimeout(timeout);
