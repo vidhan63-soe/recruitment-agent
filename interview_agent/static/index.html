@@ -625,9 +625,34 @@ body {
           placeholder="Any corrections to your details, preferred name, accessibility needs, or other notes for the interviewer…"></textarea>
       </div>
 
+      <!-- Voice / Persona selector -->
+      <div class="form-group">
+        <label class="form-label">Choose Your Interviewer</label>
+        <div style="display:flex;gap:12px;margin-top:8px;" id="personaSelectorToken">
+          <button onclick="selectPersona('rahul','token')" id="persona-token-rahul"
+            style="flex:1;padding:14px 12px;border-radius:12px;cursor:pointer;border:2px solid var(--accent);background:rgba(99,102,241,0.12);color:var(--text);text-align:left;transition:all 0.15s;">
+            <div style="font-size:22px;margin-bottom:4px;">🇮🇳</div>
+            <div style="font-weight:700;font-size:15px;">Rahul</div>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">Indian-English · Sarvam AI</div>
+          </button>
+          <button onclick="selectPersona('alex','token')" id="persona-token-alex"
+            style="flex:1;padding:14px 12px;border-radius:12px;cursor:pointer;border:2px solid var(--border);background:var(--bg);color:var(--text);text-align:left;transition:all 0.15s;">
+            <div style="font-size:22px;margin-bottom:4px;">🇺🇸</div>
+            <div style="font-weight:700;font-size:15px;">Alex</div>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">American-English · Edge TTS</div>
+          </button>
+        </div>
+      </div>
+
       <button class="btn-start" id="btnStartToken" onclick="checkinAndStart()">
         🎙️ Begin Interview
       </button>
+
+      <!-- LinkedIn / Demo disclaimer -->
+      <div style="margin-top:20px;padding:12px 16px;border-radius:10px;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);font-size:12px;color:var(--text-dim);line-height:1.6;">
+        <span style="color:var(--accent);font-weight:600;">🚀 RecruitAI Demo</span> — AI-powered recruitment platform with automated screening, ranking &amp; voice interviews.<br>
+        <span style="opacity:0.85;">Built with FastAPI · Next.js · ChromaDB · Sarvam AI · Edge TTS. Want this for your org? <strong style="color:var(--text);">DM the developer</strong> or <strong style="color:var(--text);">set it up locally</strong> — full source on GitHub.</span>
+      </div>
     </div>
 
     <!-- DIRECT MODE: Editable form (no token — recruiter / dev testing) -->
@@ -690,9 +715,34 @@ body {
         </div>
       </div>
 
+      <!-- Voice / Persona selector -->
+      <div class="form-group">
+        <label class="form-label">Choose Your Interviewer</label>
+        <div style="display:flex;gap:12px;margin-top:8px;">
+          <button onclick="selectPersona('rahul','direct')" id="persona-direct-rahul"
+            style="flex:1;padding:14px 12px;border-radius:12px;cursor:pointer;border:2px solid var(--accent);background:rgba(99,102,241,0.12);color:var(--text);text-align:left;transition:all 0.15s;">
+            <div style="font-size:22px;margin-bottom:4px;">🇮🇳</div>
+            <div style="font-weight:700;font-size:15px;">Rahul</div>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">Indian-English · Sarvam AI</div>
+          </button>
+          <button onclick="selectPersona('alex','direct')" id="persona-direct-alex"
+            style="flex:1;padding:14px 12px;border-radius:12px;cursor:pointer;border:2px solid var(--border);background:var(--bg);color:var(--text);text-align:left;transition:all 0.15s;">
+            <div style="font-size:22px;margin-bottom:4px;">🇺🇸</div>
+            <div style="font-weight:700;font-size:15px;">Alex</div>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">American-English · Edge TTS</div>
+          </button>
+        </div>
+      </div>
+
       <button class="btn-start" id="btnStart" onclick="startInterview()">
         🎙️ Start Interview
       </button>
+
+      <!-- LinkedIn / Demo disclaimer -->
+      <div style="margin-top:20px;padding:12px 16px;border-radius:10px;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.2);font-size:12px;color:var(--text-dim);line-height:1.6;">
+        <span style="color:var(--accent);font-weight:600;">🚀 RecruitAI Demo</span> — AI-powered recruitment platform with automated screening, ranking &amp; voice interviews.<br>
+        <span style="opacity:0.85;">Built with FastAPI · Next.js · ChromaDB · Sarvam AI · Edge TTS. Want this for your org? <strong style="color:var(--text);">DM the developer</strong> or <strong style="color:var(--text);">set it up locally</strong> — full source on GitHub.</span>
+      </div>
     </div>
 
   </div>
@@ -863,6 +913,17 @@ let pollInterval = null;
 let _interviewAborted = false;
 let _currentRecognition = null;
 let _interviewTranscript = []; // [{question, answer, words, ai_response}]
+let _persona = 'rahul'; // 'rahul' (Sarvam/Indian) or 'alex' (Edge TTS/American)
+
+function selectPersona(p, mode) {
+  _persona = p;
+  ['rahul','alex'].forEach(name => {
+    const btn = document.getElementById(`persona-${mode}-${name}`);
+    if (!btn) return;
+    btn.style.border = name === p ? '2px solid var(--accent)' : '2px solid var(--border)';
+    btn.style.background = name === p ? 'rgba(99,102,241,0.12)' : 'var(--bg)';
+  });
+}
 
 // Generic fallback questions (if session has none)
 const FALLBACK_QUESTIONS = [
@@ -983,7 +1044,7 @@ async function speak(text) {
     const res = await fetch('/api/interview/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: text.slice(0, 600) }),
+      body: JSON.stringify({ text: text.slice(0, 600), persona: _persona }),
       signal: controller.signal,
     });
     clearTimeout(ttsTimeout);
@@ -1220,7 +1281,10 @@ async function runBrowserInterview(config) {
   document.getElementById('questionText').textContent = 'AI Interviewer is greeting you…';
   setStatusText('AI is speaking…', true);
 
-  const greeting = `Hello ${candidateName}! Welcome to your interview for the ${role} position. My name is Alex, and I'm your AI interviewer today. We have ${questions.length} questions to cover. Please speak clearly and take your time. Ready? Let's begin!`;
+  const interviewerName = _persona === 'rahul' ? 'Rahul' : 'Alex';
+  const greeting = _persona === 'rahul'
+    ? `Namaste ${candidateName}! I'm Rahul, your AI interviewer for the ${role} position today. I'll be asking you ${questions.length} questions — please take your time and answer naturally, there's no rush. Just speak clearly and be yourself. Shall we begin?`
+    : `Hello ${candidateName}! I'm Alex, your AI interviewer for the ${role} role today. We have ${questions.length} questions lined up — just speak naturally and take as much time as you need. There are no trick questions, so just be yourself. Alright, let's get started!`;
   addMessage('interviewer', greeting);
   await speak(greeting);
 

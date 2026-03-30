@@ -471,22 +471,25 @@ SNAPSHOT_DIR = Path(__file__).parent.parent.parent / "uploads" / "snapshots"
 @router.post("/api/interview/tts")
 async def text_to_speech(request: Request):
     """
-    Text-to-speech with two-tier fallback:
-      1. Sarvam TTS (bulbul:v2) — primary, confirmed working
-      2. Edge TTS (en-US-GuyNeural) — secondary if Sarvam unavailable
-    Returns { audio_base64, format, voice }.
+    Two interviewer personas:
+      • persona="rahul"  → Sarvam bulbul:v2 / abhilash  (Indian-English)
+      • persona="alex"   → Edge TTS en-US-GuyNeural      (American-English)
+    Each falls back to the other if its primary service is unavailable.
+    Returns { audio_base64, format, voice, persona }.
     """
     import base64
     body = await request.json()
     text = (body.get("text") or "").strip()[:600]
+    persona = (body.get("persona") or "rahul").lower()
     settings = get_settings()
 
     if not text:
         return JSONResponse({"error": "No text provided"}, status_code=400)
 
-    # ── Primary: Sarvam TTS ──
-    sarvam_key = settings.SARVAM_API_KEY
-    if sarvam_key:
+    async def try_sarvam() -> dict | None:
+        sarvam_key = settings.SARVAM_API_KEY
+        if not sarvam_key:
+            return None
         try:
             async with aiohttp.ClientSession() as sess:
                 async with sess.post(
@@ -495,7 +498,7 @@ async def text_to_speech(request: Request):
                     json={
                         "inputs": [text],
                         "target_language_code": "en-IN",
-                        "speaker": _SARVAM_MALE_SPEAKER,
+                        "speaker": _SARVAM_MALE_SPEAKER,   # abhilash
                         "model": "bulbul:v2",
                         "pitch": 0, "pace": 1.0, "loudness": 1.5,
                         "speech_sample_rate": 22050,
@@ -507,30 +510,41 @@ async def text_to_speech(request: Request):
                         data = await resp.json()
                         audios = data.get("audios", [])
                         if audios:
-                            return {"audio_base64": audios[0], "format": "wav", "voice": "sarvam"}
+                            return {"audio_base64": audios[0], "format": "wav", "voice": "rahul"}
                     else:
-                        body_text = await resp.text()
-                        logger.warning(f"Sarvam TTS HTTP {resp.status}: {body_text[:120]}")
+                        logger.warning(f"Sarvam TTS HTTP {resp.status}: {(await resp.text())[:120]}")
         except Exception as e:
-            logger.warning(f"Sarvam TTS failed: {e}")
+            logger.warning(f"Sarvam TTS (Rahul) failed: {e}")
+        return None
 
-    # ── Secondary: Edge TTS (Microsoft Neural) ──
-    edge_voice = settings.EDGE_TTS_VOICE
-    try:
-        import edge_tts
-        communicate = edge_tts.Communicate(text, voice=edge_voice)
-        audio_data = b""
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                audio_data += chunk["data"]
-        if audio_data:
-            return {
-                "audio_base64": base64.b64encode(audio_data).decode(),
-                "format": "mp3",
-                "voice": edge_voice,
-            }
-    except Exception as e:
-        logger.warning(f"Edge TTS failed ({edge_voice}): {e}")
+    async def try_edge() -> dict | None:
+        edge_voice = settings.EDGE_TTS_VOICE  # en-US-GuyNeural
+        try:
+            import edge_tts
+            communicate = edge_tts.Communicate(text, voice=edge_voice)
+            audio_data = b""
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    audio_data += chunk["data"]
+            if audio_data:
+                return {
+                    "audio_base64": base64.b64encode(audio_data).decode(),
+                    "format": "mp3",
+                    "voice": "alex",
+                }
+        except Exception as e:
+            logger.warning(f"Edge TTS (Alex) failed: {e}")
+        return None
+
+    # Route by persona — try preferred first, then fall back to the other
+    if persona == "alex":
+        result = await try_edge() or await try_sarvam()
+    else:  # rahul (default)
+        result = await try_sarvam() or await try_edge()
+
+    if result:
+        result["persona"] = persona
+        return result
 
     return JSONResponse({"error": "TTS unavailable"}, status_code=503)
 

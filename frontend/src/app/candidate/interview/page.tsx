@@ -53,6 +53,7 @@ function InterviewApp() {
 
   const [phase, setPhase] = useState<Phase>("loading");
   const [sessionData, setSessionData] = useState<SessionData | null>(null);
+  const [persona, setPersona] = useState<"rahul" | "alex">("rahul");
   const [notes, setNotes] = useState("");
   const [transcript, setTranscript] = useState<TranscriptMsg[]>([]);
   const [questionIdx, setQuestionIdx] = useState(-1);
@@ -293,7 +294,7 @@ function InterviewApp() {
       const res = await fetch(`${BACKEND}/api/interview/tts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: text.slice(0, 600) }),
+        body: JSON.stringify({ text: text.slice(0, 600), persona }),
         signal: controller.signal,
       });
       clearTimeout(timeout);
@@ -641,10 +642,14 @@ function InterviewApp() {
     setQuestionPhase("GREETING");
     setCurrentQuestion("AI Interviewer is greeting you…");
     setIsAISpeaking(true);
-    const greeting =
-      `Hi ${name}! It's great to have you here today. My name is Alex, and I'll be your interviewer for the ${role} position. ` +
-      `We have ${questions.length} questions lined up — just speak naturally and take as much time as you need for each one. ` +
-      `There are no trick questions, so just be yourself. Alright, let's get started!`;
+    const interviewerName = persona === "rahul" ? "Rahul" : "Alex";
+    const greeting = persona === "rahul"
+      ? `Namaste ${name}! I'm Rahul, your AI interviewer for the ${role} position today. ` +
+        `I'll be asking you ${questions.length} questions — please take your time and answer naturally, there's no rush. ` +
+        `Just speak clearly and be yourself. Shall we begin?`
+      : `Hello ${name}! I'm Alex, your AI interviewer for the ${role} role today. ` +
+        `We have ${questions.length} questions lined up — just speak naturally and take as much time as you need. ` +
+        `There are no trick questions, so just be yourself. Alright, let's get started!`;
     addMessage("ai", greeting);
     await speak(greeting);
     setIsAISpeaking(false);
@@ -924,6 +929,35 @@ function InterviewApp() {
                   <ProfileRow icon="💼" label="Position" value={sd.role || "—"} />
                 </div>
 
+                {/* Voice / Persona selector */}
+                <div style={{ marginBottom: 24 }}>
+                  <label style={S.formLabel}>Choose Your Interviewer</label>
+                  <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
+                    {(["rahul", "alex"] as const).map((p) => {
+                      const isRahul = p === "rahul";
+                      const selected = persona === p;
+                      return (
+                        <button
+                          key={p}
+                          onClick={() => setPersona(p)}
+                          style={{
+                            flex: 1, padding: "14px 12px", borderRadius: 12, cursor: "pointer",
+                            border: `2px solid ${selected ? "var(--accent)" : "var(--border)"}`,
+                            background: selected ? "rgba(99,102,241,0.12)" : "var(--bg)",
+                            color: "var(--text)", textAlign: "left", transition: "all 0.15s",
+                          }}
+                        >
+                          <div style={{ fontSize: 22, marginBottom: 4 }}>{isRahul ? "🇮🇳" : "🇺🇸"}</div>
+                          <div style={{ fontWeight: 700, fontSize: 15 }}>{isRahul ? "Rahul" : "Alex"}</div>
+                          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
+                            {isRahul ? "Indian-English · Sarvam AI" : "American-English · Edge TTS"}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div style={{ marginBottom: 20 }}>
                   <label style={S.formLabel}>Notes / Corrections (optional)</label>
                   <textarea
@@ -935,6 +969,21 @@ function InterviewApp() {
                 </div>
 
                 <button style={S.btnStart} onClick={checkinAndStart}>🎙 Begin Interview</button>
+
+                {/* LinkedIn / Demo disclaimer */}
+                <div style={{
+                  marginTop: 24, padding: "12px 16px", borderRadius: 10,
+                  background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.2)",
+                  fontSize: 12, color: "var(--muted)", lineHeight: 1.6,
+                }}>
+                  <span style={{ color: "var(--accent)", fontWeight: 600 }}>🚀 RecruitAI Demo</span>
+                  {" — "}AI-powered recruitment platform with automated screening, ranking, and voice interviews.<br />
+                  <span style={{ opacity: 0.8 }}>
+                    Built with FastAPI · Next.js · ChromaDB · Sarvam AI · Edge TTS.
+                    {" "}Want this for your org? <strong style={{ color: "var(--text)" }}>DM the developer</strong> or{" "}
+                    <strong style={{ color: "var(--text)" }}>set it up locally</strong> — full source on GitHub.
+                  </span>
+                </div>
               </>
             ) : (
               <>
