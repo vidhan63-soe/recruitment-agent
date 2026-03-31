@@ -517,11 +517,35 @@ async def text_to_speech(request: Request):
             logger.warning(f"Sarvam TTS (Rahul) failed: {e}")
         return None
 
-    async def try_edge() -> dict | None:
-        edge_voice = settings.EDGE_TTS_VOICE  # en-US-GuyNeural
+    async def try_alex() -> dict | None:
+        # ── Primary for Alex: gTTS (Google Translate TTS, HTTP, no WebSocket = no 403) ──
+        try:
+            import io
+            from gtts import gTTS
+            loop = asyncio.get_event_loop()
+
+            def _gen():
+                tts = gTTS(text=text, lang="en", tld="com")  # tld="com" = American accent
+                fp = io.BytesIO()
+                tts.write_to_fp(fp)
+                fp.seek(0)
+                return fp.read()
+
+            audio_data = await loop.run_in_executor(None, _gen)
+            if audio_data:
+                logger.info("Alex TTS: gTTS (Google) succeeded")
+                return {
+                    "audio_base64": base64.b64encode(audio_data).decode(),
+                    "format": "mp3",
+                    "voice": "alex",
+                }
+        except Exception as e:
+            logger.warning(f"gTTS (Alex) failed: {e}")
+
+        # ── Secondary for Alex: Edge TTS (if not blocked) ──
         try:
             import edge_tts
-            communicate = edge_tts.Communicate(text, voice=edge_voice)
+            communicate = edge_tts.Communicate(text, voice=settings.EDGE_TTS_VOICE)
             audio_data = b""
             async for chunk in communicate.stream():
                 if chunk["type"] == "audio":
@@ -533,14 +557,14 @@ async def text_to_speech(request: Request):
                     "voice": "alex",
                 }
         except Exception as e:
-            logger.warning(f"Edge TTS (Alex) failed: {e}")
+            logger.warning(f"Edge TTS (Alex fallback) failed: {e}")
         return None
 
     # Route by persona — try preferred first, then fall back to the other
     if persona == "alex":
-        result = await try_edge() or await try_sarvam()
+        result = await try_alex() or await try_sarvam()
     else:  # rahul (default)
-        result = await try_sarvam() or await try_edge()
+        result = await try_sarvam() or await try_alex()
 
     if result:
         result["persona"] = persona

@@ -23,8 +23,9 @@ chromadb==0.5.23
 # --- Text Processing ---
 tiktoken==0.8.0
 
-# --- TTS (Edge TTS — Microsoft neural voices, no API key needed) ---
-edge-tts==7.0.2
+# --- TTS ---
+edge-tts==7.0.2   # Alex fallback attempt (may 403 on some networks)
+gTTS>=2.5.1       # Alex primary — Google Translate TTS, HTTP-based, no API key
 
 # --- Utilities ---
 pydantic==2.10.3
