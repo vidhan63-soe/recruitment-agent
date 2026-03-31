@@ -46,7 +46,7 @@ setup.bat
 ollama pull mistral:7b-instruct-q4_K_M
 
 # 3. Start the server
-python app.py
+python main.py
 
 # 4. Open API docs
 # http://localhost:8000/docs
